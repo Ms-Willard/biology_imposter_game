@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biology Imposter — Enzyme Edition</title>
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --ink: #172033;
+    --muted: #667085;
+    --accent: #2563eb;
+    --accent2: #7c3aed;
+    --danger: #dc2626;
+    --good: #15803d;
+    --border: #dbe2ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    background: linear-gradient(135deg,#eef4ff,#f7f4ff); color: var(--ink);
+    min-height: 100vh;
+  }
+  .wrap { width: min(760px, 94%); margin: auto; padding: 28px 0 50px; }
+  header { text-align:center; margin-bottom:22px; }
+  h1 { margin: 0 0 6px; font-size: clamp(2rem,6vw,3rem); }
+  .subtitle { color:var(--muted); margin:0; }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:24px; box-shadow:0 10px 30px rgba(20,30,60,.08); margin-bottom:18px;
+  }
+  h2 { margin-top:0; }
+  .players { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  button {
+    border:0; border-radius:12px; padding:13px 16px; font-size:1rem;
+    font-weight:700; cursor:pointer; transition:.15s;
+  }
+  button:hover { transform:translateY(-1px); }
+  .count { background:#eef2ff; color:#3730a3; }
+  .count.selected { background:var(--accent); color:white; }
+  .primary { width:100%; background:var(--accent); color:#fff; margin-top:18px; }
+  .secondary { background:#eef2f6; color:var(--ink); }
+  .danger { background:#fee2e2; color:#991b1b; }
+  .hidden { display:none !important; }
+  .progress { color:var(--muted); font-size:.92rem; margin-bottom:10px; }
+  .secret {
+    text-align:center; padding:28px 16px; border:2px dashed #cbd5e1;
+    border-radius:18px; background:#f8fafc;
+  }
+  .secret .word { font-size:clamp(2.1rem,9vw,4rem); font-weight:900; margin:15px 0; }
+  .imposter { color:var(--danger); }
+  .normal { color:var(--good); }
+  .warning { color:var(--muted); font-size:.9rem; }
+  .clue-box { text-align:center; }
+  .clue-box p { font-size:1.15rem; }
+  .turn { font-size:1.8rem; font-weight:900; }
+  .votes { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .vote { background:#f8fafc; border:1px solid var(--border); }
+  .result { text-align:center; }
+  .big { font-size:2.2rem; font-weight:900; }
+  ul { line-height:1.7; }
+  .rules { color:var(--muted); }
+  .vocab { display:flex; flex-wrap:wrap; gap:7px; margin:8px 0 20px; }
+  .vocab span {
+    background:#eef2ff; color:#3730a3; border:1px solid #dbe4ff;
+    border-radius:999px; padding:6px 10px; font-size:.84rem; font-weight:650;
+  }
+  @media(max-width:520px) {
+    .players { grid-template-columns:repeat(3,1fr); }
+    .votes { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>🧬 Biology Imposter</h1>
+  <p class="subtitle">Cell Biology Edition • 4–5 players • One hidden imposter</p>
+</header>
+
+<section id="setup" class="card">
+  <h2>Set Up Your Group</h2>
+  <p>Choose 4 or 5 players. Pass one device around so each player can secretly reveal their role.</p>
+  <div class="players">
+    <button class="count selected" data-n="4">4 Players</button>
+    <button class="count" data-n="5">5 Players</button>
+  </div>
+  <button class="primary" id="start">Start Game</button>
+  <div class="rules">
+    <h3>Vocabulary in This Game</h3>
+    <div class="vocab" id="vocabList"></div>
+    <h3>How to Play</h3>
+    <ul>
+      <li>Everyone except the imposter receives the same biology vocabulary word.</li>
+      <li>Give one short clue describing the word without saying the word itself.</li>
+      <li>After everyone gives a clue, discuss and vote for the imposter.</li>
+      <li>The vocabulary set is fixed to 20 cell-biology terms: Cell, Prokaryote, Eukaryote, Nucleus, Organelle, Plasma membrane, Cell wall, Chloroplast, Cilia, Cytoplasm, Cytoskeleton, Endoplasmic reticulum (smooth/rough), Vesicles, Flagella, Golgi apparatus, Lysosome, Mitochondria, Ribosome, Vacuole, and Chlorophyll.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="reveal" class="card hidden">
+  <div class="progress" id="revealProgress"></div>
+  <h2>Secret Role</h2>
+  <div class="secret">
+    <div id="roleLabel"></div>
+    <div class="word" id="secretWord"></div>
+    <p class="warning">Memorize your card. Then hide it before passing the device.</p>
+  </div>
+  <button class="primary" id="nextPlayer">Hide & Pass to Next Player</button>
+</section>
+
+<section id="clues" class="card hidden">
+  <div class="progress">All roles have been revealed.</div>
+  <h2>Clue Round</h2>
+  <div class="clue-box">
+    <div class="turn" id="turnLabel"></div>
+    <p>Give <strong>one-word clue</strong>. Do not say the vocabulary word.</p>
+    <button class="primary" id="nextClue">Clue Given — Next Player</button>
+  </div>
+</section>
+
+<section id="vote" class="card hidden">
+  <h2>Vote</h2>
+  <p>Discuss the clues, then select the player you think is the imposter.</p>
+  <div class="votes" id="voteButtons"></div>
+</section>
+
+<section id="result" class="card hidden">
+  <div class="result">
+    <h2>Round Results</h2>
+    <div class="big" id="resultTitle"></div>
+    <p id="resultDetails"></p>
+    <button class="primary" id="again">Play Another Round</button>
+    <button class="secondary" id="newGroup" style="width:100%;margin-top:10px;">Change Player Count</button>
+  </div>
+</section>
+</div>
+
+<script>
+const words = [
+  "Cell",
+  "Prokaryote",
+  "Eukaryote",
+  "Nucleus",
+  "Organelle",
+  "Plasma membrane",
+  "Cell wall",
+  "Chloroplast",
+  "Cilia",
+  "Cytoplasm",
+  "Cytoskeleton",
+  "Endoplasmic reticulum (smooth/rough)",
+  "Vesicles",
+  "Flagella",
+  "Golgi apparatus",
+  "Lysosome",
+  "Mitochondria",
+  "Ribosome",
+  "Vacuole",
+  "Chlorophyll"
+];
+let playerCount = 4, secretWord = "", imposter = 0, current = 0, clueTurn = 0;
+
+const $ = id => document.getElementById(id);
+
+const vocabList = $("vocabList");
+words.forEach(word => {
+  const tag = document.createElement("span");
+  tag.textContent = word;
+  vocabList.appendChild(tag);
+});
+
+const sections = ["setup","reveal","clues","vote","result"];
+function show(name) {
+  sections.forEach(s => $(s).classList.toggle("hidden", s !== name));
+}
+function randomInt(max) { return Math.floor(Math.random() * max); }
+
+document.querySelectorAll(".count").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".count").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    playerCount = Number(btn.dataset.n);
+  });
+});
+
+$("start").onclick = startRound;
+
+function startRound() {
+  secretWord = words[randomInt(words.length)];
+  imposter = randomInt(playerCount);
+  current = 0;
+  show("reveal");
+  revealPlayer();
+}
+
+function revealPlayer() {
+  $("revealProgress").textContent = `Player ${current + 1} of ${playerCount}`;
+  const isImposter = current === imposter;
+  $("roleLabel").textContent = isImposter ? "YOU ARE THE IMPOSTER" : "YOU ARE A BIOLOGY PLAYER";
+  $("roleLabel").className = isImposter ? "imposter" : "normal";
+  $("secretWord").textContent = isImposter ? "You do not know the word." : secretWord;
+  $("secretWord").className = "word " + (isImposter ? "imposter" : "normal");
+  $("nextPlayer").textContent = current === playerCount - 1 ? "Start Clue Round" : "Hide & Pass to Next Player";
+}
+
+$("nextPlayer").onclick = () => {
+  if (current < playerCount - 1) {
+    current++;
+    revealPlayer();
+  } else {
+    clueTurn = 0;
+    show("clues");
+    updateClueTurn();
+  }
+};
+
+function updateClueTurn() {
+  $("turnLabel").textContent = `Player ${clueTurn + 1}`;
+}
+
+$("nextClue").onclick = () => {
+  clueTurn++;
+  if (clueTurn >= playerCount) {
+    buildVotes();
+    show("vote");
+  } else updateClueTurn();
+};
+
+function buildVotes() {
+  $("voteButtons").innerHTML = "";
+  for (let i=0; i<playerCount; i++) {
+    const b = document.createElement("button");
+    b.className = "vote";
+    b.textContent = `Vote Player ${i+1}`;
+    b.onclick = () => finishVote(i);
+    $("voteButtons").appendChild(b);
+  }
+}
+
+function finishVote(voted) {
+  const caught = voted === imposter;
+  $("resultTitle").textContent = caught ? "🎉 Imposter Caught!" : "🕵️ The Imposter Escaped!";
+  $("resultTitle").className = "big " + (caught ? "normal" : "imposter");
+  $("resultDetails").innerHTML =
+    `The secret word was <strong>${secretWord}</strong>.<br>` +
+    `Player ${imposter + 1} was the imposter.<br>` +
+    (caught ? "The biology team wins this round!" : "The imposter wins this round!");
+  show("result");
+}
+
+$("again").onclick = startRound;
+$("newGroup").onclick = () => show("setup");
+</script>
+</body>
+</html>
